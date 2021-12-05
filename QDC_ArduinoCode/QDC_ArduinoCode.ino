@@ -19,10 +19,10 @@ const byte ROWS = 4; //four rows
 const byte COLS = 2; //four columns
 //define the cymbols on the buttons of the keypads
 char hexaKeys[ROWS][COLS] = {
-    {'6', 'A'},  //
-    {'9', 'D'},
-    {'#', 'C'},
-    {'3', 'B'}
+    {'3', '7'},  //
+    {'2', '6'},
+    {'1', '5'},
+    {'0', '4'}
 };
 byte rowPins[ROWS] = {9, 8, 7, 6}; //connect to the row pinouts of the keypad
 byte colPins[COLS] = {11, 10}; //connect to the column pinouts of the keypad
@@ -100,56 +100,56 @@ void checkKey() //method for receiving the commands
     if (customKey){
         digitalWrite(LED_BUILTIN, LOW);
         switch(customKey) {
-            case '#':
-                Serial.println("Down 100mm "); //print action
-                receivedSpeed = 7000; //set speed
-                receivedDistance = 100 * motorsteps; //set distance
+            case '0':
+                stopall();
+                Serial.println("STOP");
+                break;
+            case '1':
+                Serial.println("Down 1100mm "); //print action
+                receivedSpeed = 8000; //set speed
+                receivedDistance = 1100 * motorsteps; //set distance
                 updirection = false;
                 runallowed = true;
                 break;
-            case '9':
+            case '2':
                 Serial.println("Down 10mm "); //print action
                 receivedSpeed = 5000; //set speed
                 receivedDistance = 10 * motorsteps; //set distance
                 updirection = false;
                 runallowed = true;
                 break;
-            case '6':
+            case '3':
                 Serial.println("Down 1mm "); //print action
                 receivedSpeed = 5000; //set speed
                 receivedDistance = 1 * motorsteps; //set distance
                 updirection = false;
                 runallowed = true;
                 break;
-            case '3':
-                stopall();
-                Serial.println("STOP");
-                break;
-            case 'D':
-                Serial.println("UP 100mm"); //print action
-                receivedSpeed = 7000; //set speed
-                receivedDistance = 100 * motorsteps; //set distance
-                updirection = true;
+            case '4':
+                Serial.println("Down 0.5mm"); //print action
+                receivedSpeed = 4000; //set speed
+                receivedDistance = 0.5 * motorsteps; //set distance
+                updirection = false;
                 runallowed = true;
                 break;
-            case 'C':
-                Serial.println("UP 10mm"); //print action
-                receivedSpeed = 5000; //set speed
-                receivedDistance = 10 * motorsteps; //set distance
-                updirection = true;
-                runallowed = true;
-                break;
-            case 'B':
+            case '5':
                 Serial.println("UP 1mm"); //print action
                 receivedSpeed = 5000; //set speed
                 receivedDistance = 1 * motorsteps; //set distance
                 updirection = true;
                 runallowed = true; //allow running
                 break;
-            case 'A':
-                 Serial.println("UP 1000mm"); //print action
-                receivedSpeed = 7000; //set speed
-                receivedDistance = 1000 * motorsteps; //set distance
+            case '6':
+                Serial.println("UP 10mm"); //print action
+                receivedSpeed = 5000; //set speed
+                receivedDistance = 10 * motorsteps; //set distance
+                updirection = true;
+                runallowed = true;
+                break;
+            case '7':
+                 Serial.println("UP 1100mm"); //print action
+                receivedSpeed = 8000; //set speed
+                receivedDistance = 1100 * motorsteps; //set distance
                 updirection = true;
                 runallowed = true;
                 break;
