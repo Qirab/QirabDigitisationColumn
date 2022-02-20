@@ -1,12 +1,16 @@
+// Qirab Digitization Column
+// http://qirab.org
+// This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
+
 #include <AccelStepper.h>
 #include <Keypad.h>
 
-long motorsteps = 800 * 0.94; // stepper driver microstop setting adjusted for leadscrew calibration factor
+long motorsteps = 3200 * 0.125; // stepper driver microstop setting adjusted for leadscrew calibration factor
 long receivedDistance = 0; //rotations mm from the computer
 long receivedSpeed = 0; //delay between two steps, received from the computer
 
 bool runallowed = false; // booleans for new data from serial, and runallowed flag
-bool updirection = true; // set direction as up default
+bool updirection = false; // set direction as up default
 
 // direction Digital 2 (CCW), pulses Digital 3 (CLK)
 AccelStepper stepper(1, 3, 2);
@@ -27,16 +31,21 @@ char hexaKeys[ROWS][COLS] = {
 byte rowPins[ROWS] = {9, 8, 7, 6}; //connect to the row pinouts of the keypad
 byte colPins[COLS] = {11, 10}; //connect to the column pinouts of the keypad
 //initialize an instance of class NewKeypad
-Keypad customKeypad = Keypad( makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
+Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
 
 void setup()
 {
     Serial.begin(9600); //define baud rate
-    Serial.println("Camera Column Motor Intialized"); //print a message
+    Serial.println("Qirab Digitization Column");
+    Serial.println("QDC100 - Serial: 000001");
+    Serial.println("This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.");
+    Serial.println("http://qirab.org");
+    Serial.println("Camera Column Motor Intialized"); 
+    Serial.print("\n");
 
     //setting up some default values for maximum speed and maximum acceleration
-    stepper.setMaxSpeed(7000); //SPEED = Steps / second
-    stepper.setAcceleration(600); //ACCELERATION = Steps /(second)
+    stepper.setMaxSpeed(8000); //SPEED = Steps / second
+    stepper.setAcceleration(500); //ACCELERATION = Steps /(second)
 
     stepper.disableOutputs(); //disable outputs, so the motor is not getting warm (no current)
 
@@ -46,6 +55,8 @@ void setup()
     // Declare Endstop pins as output:
     pinMode(topstopPin, INPUT_PULLUP);
     pinMode(botstopPin, INPUT_PULLUP);
+
+    pinMode(12, OUTPUT);    // sets the digital pin 12 as output for stepper drive enable/disable
 }
 
 void loop()
@@ -57,40 +68,47 @@ void loop()
 
 void continuousRun() //method for the motor
 {
-    volatile int topstopValue = digitalRead(topstopPin);
-    if (topstopValue == 0 and updirection == true)
-    {
-        stopall();
-        Serial.print("STOP Top Endstop\n");
-        return;
-    }
-
     volatile int botstopValue = digitalRead(botstopPin);
     if (botstopValue == 0 and updirection == false)
     {
-        stopall();
-        Serial.print("STOP Bottom Endstop\n");
+        runallowed = false;
+        updirection = true;
+        Serial.print("STOP Bottom Endstop: "); Serial.print(botstopValue); Serial.print("\n");
         return;
     }
+    
+    volatile int topstopValue = digitalRead(topstopPin);
+    if (topstopValue == 0 and updirection == true)
+    {
+        runallowed = false;
+        updirection = false;
+        Serial.print("STOP Top Endstop: ");
+        Serial.print(topstopValue);      
+        Serial.print("\n");
+      return;
+   }
+
+  
 
     if (runallowed == true)
     {
         if (abs(stepper.currentPosition()) < receivedDistance)
-        {
+          {
             stepper.enableOutputs(); //enable pins
+            digitalWrite(12, HIGH); // enable motor driver
             stepper.run(); //step the motor (this will step the motor by 1 step at each loop)
-        }
-        else //program enters this part if the required distance is completed
-        {
-            Serial.print("POS: ");
-            Serial.println(stepper.currentPosition()); // print pos -> this will show you the latest relative number of steps
+          }
+          else //program enters this part if the required distance is completed
+          {
+            Serial.print("POS: "); Serial.println(stepper.currentPosition()); // print pos -> this will show you the latest relative number of steps
             stopall();
-        }
-        }
-        else //program enters this part if the runallowed is FALSE, we do not do anything
-        {
+          }
+    }
+    else //program enters this part if the runallowed is FALSE, we do not do anything
+    {
+            stopall();
             return;
-        }
+    }
 }
 
 void checkKey() //method for receiving the commands
@@ -101,56 +119,56 @@ void checkKey() //method for receiving the commands
         digitalWrite(LED_BUILTIN, LOW);
         switch(customKey) {
             case '0':
-                stopall();
+                runallowed = false;
                 Serial.println("STOP");
                 break;
             case '1':
                 Serial.println("Down 1100mm "); //print action
                 receivedSpeed = 8000; //set speed
                 receivedDistance = 1100 * motorsteps; //set distance
-                updirection = false;
+                updirection = true;
                 runallowed = true;
                 break;
             case '2':
                 Serial.println("Down 10mm "); //print action
                 receivedSpeed = 5000; //set speed
                 receivedDistance = 10 * motorsteps; //set distance
-                updirection = false;
+                updirection = true;
                 runallowed = true;
                 break;
             case '3':
                 Serial.println("Down 1mm "); //print action
                 receivedSpeed = 5000; //set speed
                 receivedDistance = 1 * motorsteps; //set distance
-                updirection = false;
+                updirection = true;
                 runallowed = true;
                 break;
             case '4':
                 Serial.println("Down 0.5mm"); //print action
-                receivedSpeed = 4000; //set speed
+                receivedSpeed = 3000; //set speed
                 receivedDistance = 0.5 * motorsteps; //set distance
-                updirection = false;
+                updirection = true;
                 runallowed = true;
                 break;
             case '5':
                 Serial.println("UP 1mm"); //print action
                 receivedSpeed = 5000; //set speed
                 receivedDistance = 1 * motorsteps; //set distance
-                updirection = true;
+                updirection = false;
                 runallowed = true; //allow running
                 break;
             case '6':
                 Serial.println("UP 10mm"); //print action
                 receivedSpeed = 5000; //set speed
                 receivedDistance = 10 * motorsteps; //set distance
-                updirection = true;
+                updirection = false;
                 runallowed = true;
                 break;
             case '7':
                  Serial.println("UP 1100mm"); //print action
                 receivedSpeed = 8000; //set speed
                 receivedDistance = 1100 * motorsteps; //set distance
-                updirection = true;
+                updirection = false;
                 runallowed = true;
                 break;
         }
@@ -172,6 +190,7 @@ void stopall ()
     stepper.stop(); //stop motor
     stepper.setCurrentPosition(0); // reset position
     stepper.disableOutputs(); // disable power
+    digitalWrite(12, LOW); // diasble motor but setting PIN12 to LOW
     runallowed = false; // stop run if either endstop is active
     digitalWrite(LED_BUILTIN, HIGH);
 }
