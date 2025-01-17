@@ -1,4 +1,4 @@
-# QirabDigitisationColumn
+# QirabDigitisationColumn - QDC100 & QDC150
 An Open Source motorized camera support column designed for use during the digitisation of fragile manuscripts.
 
 ![QDC100 v1.2 CAD](https://github.com/Qirab/QirabDigitisationColumn/blob/main/QDC100v1.2.png?raw=true)
