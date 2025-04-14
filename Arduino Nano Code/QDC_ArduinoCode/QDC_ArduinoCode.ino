@@ -11,7 +11,7 @@ long receivedDistance = 0;       //rotations mm from the computer
 long receivedSpeed = 0;          //delay between two steps, received from the computer
 
 bool runallowed = false;   // booleans for new data from serial, and runallowed flag
-bool updirection = false;  // set direction as up default
+bool downdirection = false;  // set direction as UP default
 
 // direction Digital 2 (CCW), pulses Digital 3 (CLK)
 AccelStepper stepper(1, 3, 2);
@@ -70,9 +70,10 @@ void continuousRun()  //method for the motor
   volatile int topstopValue = digitalRead(topstopPin);
   volatile int botstopValue = digitalRead(botstopPin);
 
-  if (topstopValue == 0 and updirection == true) {
+  if (topstopValue == 0 and downdirection  == true) {
+    // bottom endstop switch logic
     runallowed = false;
-    updirection = false;
+    downdirection = false;
     Serial.print("STOP Bottom Endstop - topstopValue:");
     Serial.print(topstopValue);
     Serial.print(" botstopValue:");
@@ -81,9 +82,10 @@ void continuousRun()  //method for the motor
     return;
   }
 
-  if (botstopValue == 0 and updirection == false) {
+  if (botstopValue == 0 and downdirection == false) {
+        // top endstop switch logic
     runallowed = false;
-    updirection = true;
+    downdirection = true;
     Serial.print("STOP Top Endstop - topstopValue:");
     Serial.print(topstopValue);
     Serial.print(" botstopValue:");
@@ -96,6 +98,7 @@ void continuousRun()  //method for the motor
 
   if (runallowed == true) {
     if (abs(stepper.currentPosition()) < receivedDistance) {
+      // actiovate motor
       stepper.enableOutputs();  //enable pins
       digitalWrite(12, HIGH);   // enable motor driver
       stepper.run();            //step the motor (this will step the motor by 1 step at each loop)
@@ -127,58 +130,58 @@ void checkKey()  //method for receiving the commands
         Serial.println("Down 1600mm ");        //print action
         receivedSpeed = 8000;                  //set speed
         receivedDistance = 1600 * motorsteps;  //set max distance; for QDC150
-        updirection = true;
+      downdirection  = true;
         runallowed = true;
         break;
       case '2':
         Serial.println("Down 10mm ");        //print action
         receivedSpeed = 5000;                //set speed
         receivedDistance = 10 * motorsteps;  //set distance
-        updirection = true;
+      downdirection  = true;
         runallowed = true;
         break;
       case '3':
         Serial.println("Down 1mm ");        //print action
         receivedSpeed = 5000;               //set speed
         receivedDistance = 1 * motorsteps;  //set distance
-        updirection = true;
+      downdirection  = true;
         runallowed = true;
         break;
       case '4':
         Serial.println("Down 0.5mm");         //print action
         receivedSpeed = 3000;                 //set speed
         receivedDistance = 0.5 * motorsteps;  //set distance
-        updirection = true;
+      downdirection  = true;
         runallowed = true;
         break;
       case '5':
         Serial.println("UP 1mm");           //print action
         receivedSpeed = 5000;               //set speed
         receivedDistance = 1 * motorsteps;  //set distance
-        updirection = false;
+      downdirection  = false;
         runallowed = true;  //allow running
         break;
       case '6':
         Serial.println("UP 10mm");           //print action
         receivedSpeed = 5000;                //set speed
         receivedDistance = 10 * motorsteps;  //set distance
-        updirection = false;
+      downdirection  = false;
         runallowed = true;
         break;
       case '7':
         Serial.println("UP 1600mm");           //print action
         receivedSpeed = 8000;                  //set speed
         receivedDistance = 1600 * motorsteps;  //set max distance; for QDC150
-        updirection = false;
+      downdirection  = false;
         runallowed = true;
         break;
     }
-    if (runallowed == true and updirection == true) {
+    if (runallowed == true and downdirection  == true) {
       stepper.setMaxSpeed(receivedSpeed);  // speed
-      stepper.move(receivedDistance);      // move
-    } else if (runallowed == true and updirection == false) {
+      stepper.move(receivedDistance);      // move down
+    } else if (runallowed == true and downdirection  == false) {
       stepper.setMaxSpeed(receivedSpeed);   //speed
-      stepper.move(-1 * receivedDistance);  // move reverse
+      stepper.move(-1 * receivedDistance);  // move up
     }
   }
 }
@@ -189,7 +192,7 @@ void stopall() {
   stepper.setCurrentPosition(0);  // reset position
   stepper.disableOutputs();       // disable power
   digitalWrite(12, LOW);          // diasble motor but setting PIN12 to LOW
-  runallowed = false;             // stop run if either endstop is active
+  runallowed = false;             // disable run in software
   digitalWrite(LED_BUILTIN, HIGH);
 }
 
