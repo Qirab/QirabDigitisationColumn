@@ -6,6 +6,7 @@
 #include <AccelStepper.h>
 #include <Keypad.h>
 
+// Variables for button system
 long motorsteps = 3200 * 0.125;  // stepper driver microstop setting adjusted for leadscrew calibration factor
 long receivedDistance = 0;       //rotations mm from the computer
 long receivedSpeed = 0;          //delay between two steps, received from the computer
@@ -37,7 +38,7 @@ Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS)
 void setup() {
   Serial.begin(9600);  //define baud rate
   Serial.println("Qirab Digitization Column v1.2");
-  Serial.println("QDC100 - Serial: 000010");
+  Serial.println("QDC100 - Serial: 000000");
   Serial.println("This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.");
   Serial.println("http://qirab.org");
   Serial.println("Camera Column Motor Intialized");
