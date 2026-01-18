@@ -13,6 +13,7 @@ long receivedSpeed = 0;          //delay between two steps, received from the co
 
 bool runallowed = false;   // booleans for new data from serial, and runallowed flag
 bool downdirection = false;  // set direction as UP default
+bool lastInputWasEncoder = false;  // tracks input source for accumulator reset
 
 // ============================================
 // KY-040 Rotary Encoder Configuration
@@ -224,11 +225,22 @@ void checkKey()  //method for receiving the commands
 
     // Handle STOP button separately
     if (customKey == '0') {
+      lastInputWasEncoder = false;
       return;
     }
 
+    // Check if switching from encoder to button - reset accumulator
+    if (runallowed == true && lastInputWasEncoder == true) {
+      Serial.println("(switching from encoder - resetting)");
+      stopall();
+      receivedDistance = buttonDistance;
+      receivedSpeed = buttonSpeed;
+      downdirection = buttonDown;
+      runallowed = true;
+      lastInputWasEncoder = false;
+    }
     // Cumulative behavior: same direction accumulates, direction change resets
-    if (runallowed == true && downdirection == buttonDown) {
+    else if (runallowed == true && downdirection == buttonDown) {
       // Same direction while moving - accumulate distance
       receivedDistance = receivedDistance + buttonDistance;
       if (buttonSpeed > receivedSpeed) {
@@ -253,6 +265,7 @@ void checkKey()  //method for receiving the commands
       downdirection = buttonDown;
       runallowed = true;
     }
+    lastInputWasEncoder = false;
 
     // Set motor parameters and start movement
     if (runallowed == true && downdirection == true) {
@@ -342,21 +355,28 @@ void checkEncoder() {
       // 8mm / 25 signals = 0.32mm per signal
       long stepIncrement = 0.32 * motorsteps;
 
+      // Check if switching from buttons to encoder - reset accumulator
+      if (runallowed == true && lastInputWasEncoder == false) {
+        Serial.println("ENCODER: (switching from buttons - resetting)");
+        stopall();
+      }
+
       // Determine rotation direction from DT state
       // If DT is HIGH when CLK falls, rotation is clockwise (UP)
       // If DT is LOW when CLK falls, rotation is counter-clockwise (DOWN)
       if (currentDTState == HIGH) {
         // Clockwise rotation - move UP 0.5mm
 
-        if (runallowed && downdirection == false) {
-          // Already moving UP - accumulate distance
+        if (runallowed && downdirection == false && lastInputWasEncoder == true) {
+          // Already moving UP with encoder - accumulate distance
           receivedDistance += stepIncrement;
           stepper.move(-1 * receivedDistance);  // update target (negative = up)
           Serial.print("ENCODER: UP 0.32mm (accumulated: ");
           Serial.print((float)receivedDistance / motorsteps, 2);
           Serial.println("mm)");
-        } else if (runallowed && downdirection == true) {
-          // Currently moving DOWN - stop and reverse direction
+          lastInputWasEncoder = true;  // maintain encoder mode
+        } else if (runallowed && downdirection == true && lastInputWasEncoder == true) {
+          // Currently moving DOWN with encoder - stop and reverse direction
           Serial.println("ENCODER: STOP (reversing direction)");
           stopall();
           Serial.println("ENCODER: Direction change to UP");
@@ -364,30 +384,33 @@ void checkEncoder() {
           receivedDistance = stepIncrement;
           downdirection = false;
           runallowed = true;
+          lastInputWasEncoder = true;
           stepper.setMaxSpeed(receivedSpeed);
           stepper.move(-1 * receivedDistance);
         } else {
-          // Not currently moving - start new UP movement
+          // Not currently moving OR switching from buttons - start new UP movement
           Serial.println("ENCODER: UP 0.32mm");
           receivedSpeed = 3000;
           receivedDistance = stepIncrement;
           downdirection = false;
           runallowed = true;
+          lastInputWasEncoder = true;
           stepper.setMaxSpeed(receivedSpeed);
           stepper.move(-1 * receivedDistance);
         }
       } else {
         // Counter-clockwise rotation - move DOWN 0.5mm
 
-        if (runallowed && downdirection == true) {
-          // Already moving DOWN - accumulate distance
+        if (runallowed && downdirection == true && lastInputWasEncoder == true) {
+          // Already moving DOWN with encoder - accumulate distance
           receivedDistance += stepIncrement;
           stepper.move(receivedDistance);  // update target (positive = down)
           Serial.print("ENCODER: Down 0.32mm (accumulated: ");
           Serial.print((float)receivedDistance / motorsteps, 2);
           Serial.println("mm)");
-        } else if (runallowed && downdirection == false) {
-          // Currently moving UP - stop and reverse direction
+          lastInputWasEncoder = true;  // maintain encoder mode
+        } else if (runallowed && downdirection == false && lastInputWasEncoder == true) {
+          // Currently moving UP with encoder - stop and reverse direction
           Serial.println("ENCODER: STOP (reversing direction)");
           stopall();
           Serial.println("ENCODER: Direction change to Down");
@@ -395,15 +418,17 @@ void checkEncoder() {
           receivedDistance = stepIncrement;
           downdirection = true;
           runallowed = true;
+          lastInputWasEncoder = true;
           stepper.setMaxSpeed(receivedSpeed);
           stepper.move(receivedDistance);
         } else {
-          // Not currently moving - start new DOWN movement
+          // Not currently moving OR switching from buttons - start new DOWN movement
           Serial.println("ENCODER: Down 0.32mm");
           receivedSpeed = 3000;
           receivedDistance = stepIncrement;
           downdirection = true;
           runallowed = true;
+          lastInputWasEncoder = true;
           stepper.setMaxSpeed(receivedSpeed);
           stepper.move(receivedDistance);
         }
