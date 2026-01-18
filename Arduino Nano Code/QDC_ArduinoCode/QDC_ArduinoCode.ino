@@ -59,7 +59,7 @@ Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS)
 
 void setup() {
   Serial.begin(9600);  //define baud rate
-  Serial.println("Qirab Digitization Column v1.2");
+  Serial.println("Qirab Digitization Column v1.3");
   Serial.println("QDC100 - Serial: 000000");
   Serial.println("This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.");
   Serial.println("http://qirab.org");
@@ -165,67 +165,102 @@ void checkKey()  //method for receiving the commands
 
   if (customKey) {
     digitalWrite(LED_BUILTIN, LOW);
+
+    // Variables for the pressed button's parameters
+    long buttonDistance = 0;
+    long buttonSpeed = 0;
+    bool buttonDown = false;
+
     switch (customKey) {
       case '0':
         runallowed = false;
         Serial.println("STOP");
         break;
       case '1':
-        Serial.println("Down 1600mm ");        //print action
-        receivedSpeed = 8000;                  //set speed
-        receivedDistance = 1600 * motorsteps;  //set max distance; for QDC150
-      downdirection  = true;
-        runallowed = true;
+        Serial.print("Down 1600mm ");
+        buttonDistance = 1600 * motorsteps;
+        buttonSpeed = 8000;
+        buttonDown = true;
         break;
       case '2':
-        Serial.println("Down 10mm ");        //print action
-        receivedSpeed = 5000;                //set speed
-        receivedDistance = 10 * motorsteps;  //set distance
-      downdirection  = true;
-        runallowed = true;
+        Serial.print("Down 10mm ");
+        buttonDistance = 10 * motorsteps;
+        buttonSpeed = 5000;
+        buttonDown = true;
         break;
       case '3':
-        Serial.println("Down 1mm ");        //print action
-        receivedSpeed = 5000;               //set speed
-        receivedDistance = 1 * motorsteps;  //set distance
-      downdirection  = true;
-        runallowed = true;
+        Serial.print("Down 1mm ");
+        buttonDistance = 1 * motorsteps;
+        buttonSpeed = 5000;
+        buttonDown = true;
         break;
       case '4':
-        Serial.println("Down 0.5mm");         //print action
-        receivedSpeed = 3000;                 //set speed
-        receivedDistance = 0.5 * motorsteps;  //set distance
-      downdirection  = true;
-        runallowed = true;
+        Serial.print("Down 0.5mm ");
+        buttonDistance = 0.5 * motorsteps;
+        buttonSpeed = 3000;
+        buttonDown = true;
         break;
       case '5':
-        Serial.println("UP 1mm");           //print action
-        receivedSpeed = 5000;               //set speed
-        receivedDistance = 1 * motorsteps;  //set distance
-      downdirection  = false;
-        runallowed = true;  //allow running
+        Serial.print("UP 1mm ");
+        buttonDistance = 1 * motorsteps;
+        buttonSpeed = 5000;
+        buttonDown = false;
         break;
       case '6':
-        Serial.println("UP 10mm");           //print action
-        receivedSpeed = 5000;                //set speed
-        receivedDistance = 10 * motorsteps;  //set distance
-      downdirection  = false;
-        runallowed = true;
+        Serial.print("UP 10mm ");
+        buttonDistance = 10 * motorsteps;
+        buttonSpeed = 5000;
+        buttonDown = false;
         break;
       case '7':
-        Serial.println("UP 1600mm");           //print action
-        receivedSpeed = 8000;                  //set speed
-        receivedDistance = 1600 * motorsteps;  //set max distance; for QDC150
-      downdirection  = false;
-        runallowed = true;
+        Serial.print("UP 1600mm ");
+        buttonDistance = 1600 * motorsteps;
+        buttonSpeed = 8000;
+        buttonDown = false;
         break;
+      default:
+        return;  // unknown key, exit
     }
-    if (runallowed == true and downdirection  == true) {
-      stepper.setMaxSpeed(receivedSpeed);  // speed
-      stepper.move(receivedDistance);      // move down
-    } else if (runallowed == true and downdirection  == false) {
-      stepper.setMaxSpeed(receivedSpeed);   //speed
-      stepper.move(-1 * receivedDistance);  // move up
+
+    // Handle STOP button separately
+    if (customKey == '0') {
+      return;
+    }
+
+    // Cumulative behavior: same direction accumulates, direction change resets
+    if (runallowed == true && downdirection == buttonDown) {
+      // Same direction while moving - accumulate distance
+      receivedDistance = receivedDistance + buttonDistance;
+      if (buttonSpeed > receivedSpeed) {
+        receivedSpeed = buttonSpeed;
+      }
+      Serial.print("(accumulated: ");
+      Serial.print((float)receivedDistance / motorsteps, 1);
+      Serial.println("mm)");
+    } else if (runallowed == true && downdirection != buttonDown) {
+      // Direction change while moving - stop and start fresh
+      Serial.println("(direction change)");
+      stopall();
+      receivedDistance = buttonDistance;
+      receivedSpeed = buttonSpeed;
+      downdirection = buttonDown;
+      runallowed = true;
+    } else {
+      // Not currently moving - start fresh
+      Serial.println("");
+      receivedDistance = buttonDistance;
+      receivedSpeed = buttonSpeed;
+      downdirection = buttonDown;
+      runallowed = true;
+    }
+
+    // Set motor parameters and start movement
+    if (runallowed == true && downdirection == true) {
+      stepper.setMaxSpeed(receivedSpeed);
+      stepper.move(receivedDistance);
+    } else if (runallowed == true && downdirection == false) {
+      stepper.setMaxSpeed(receivedSpeed);
+      stepper.move(-1 * receivedDistance);
     }
   }
 }
@@ -317,7 +352,9 @@ void checkEncoder() {
           // Already moving UP - accumulate distance
           receivedDistance += stepIncrement;
           stepper.move(-1 * receivedDistance);  // update target (negative = up)
-          Serial.println("ENCODER: UP 0.32mm (accumulated)");
+          Serial.print("ENCODER: UP 0.32mm (accumulated: ");
+          Serial.print((float)receivedDistance / motorsteps, 2);
+          Serial.println("mm)");
         } else if (runallowed && downdirection == true) {
           // Currently moving DOWN - stop and reverse direction
           Serial.println("ENCODER: STOP (reversing direction)");
@@ -346,7 +383,9 @@ void checkEncoder() {
           // Already moving DOWN - accumulate distance
           receivedDistance += stepIncrement;
           stepper.move(receivedDistance);  // update target (positive = down)
-          Serial.println("ENCODER: Down 0.32mm (accumulated)");
+          Serial.print("ENCODER: Down 0.32mm (accumulated: ");
+          Serial.print((float)receivedDistance / motorsteps, 2);
+          Serial.println("mm)");
         } else if (runallowed && downdirection == false) {
           // Currently moving UP - stop and reverse direction
           Serial.println("ENCODER: STOP (reversing direction)");
